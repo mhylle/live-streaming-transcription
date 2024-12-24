@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import * as nodeWhisper from 'node-whisper';
+import * as WhisperNode from 'whisper-node';
 
 @Injectable()
 export class WhisperService implements OnModuleInit {
@@ -7,22 +7,25 @@ export class WhisperService implements OnModuleInit {
 
   async onModuleInit() {
     // Initialize Whisper with the base model
-    this.whisper = await nodeWhisper.init({
-      modelName: 'base',
+    this.whisper = new WhisperNode({
+      modelName: 'tiny',  // Using tiny model for faster processing
       whisperOptions: {
-        strategy: 'faster-whisper',
+        language: 'en',
       },
     });
   }
 
   async transcribe(audioBuffer: Buffer): Promise<string> {
     try {
-      const result = await this.whisper.transcribe(audioBuffer, {
-        language: 'en',
-        task: 'transcribe',
-        beamSize: 1, // Faster processing
-        bestOf: 1,   // Faster processing
-      });
+      // Write buffer to temporary file (whisper-node requires file input)
+      const tempFile = `temp_${Date.now()}.wav`;
+      require('fs').writeFileSync(tempFile, audioBuffer);
+
+      // Transcribe the audio
+      const result = await this.whisper.transcribe(tempFile);
+
+      // Clean up temporary file
+      require('fs').unlinkSync(tempFile);
 
       return result.text;
     } catch (error) {
